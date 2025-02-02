@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Summarizer 3000</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* Dark theme background and text colors */
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #1a1a1a, #4d4d4d);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            background: linear-gradient(135deg, #1f1f1f, #3a3a3a);
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            padding: 30px;
+            max-width: 750px;
+            margin: auto;
+            text-align: center;
+        }
+
+        h1, h2, h3 {
+            font-family: 'Roboto', sans-serif;
+            color: #ffffff;
+        }
+
+        h1 {
+            font-size: 3rem;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h3 {
+            margin-top: 20px;
+            font-size: 1.8rem;
+            transition: color 0.3s ease;
+        }
+
+        .form-label {
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+        .form-control {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .btn {
+            background-color: #ff5722;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+        }
+        .btn:hover {
+            background-color: #e64a19;
+            transform: translateY(-2px);
+        }
+
+        .btn-primary {
+            background-color: #6200ea;
+            border-color: #6200ea;
+            width: 100%;
+            padding: 12px;
+            font-size: 1.2rem;
+            transition: background-color 0.3s ease;
+            border-radius: 8px;
+        }
+
+        .btn-primary:hover {
+            background-color: #3700b3;
+            border-color: #3700b3;
+        }
+
+        .btn-primary:active {
+            background-color: #6200ea;
+            border-color: #6200ea;
+        }
+
+        .hide-button {
+            text-align: center;
+            cursor: pointer;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #03dac5;
+            transition: color 0.3s ease;
+        }
+
+        .hide-button:hover {
+            color: #ff4081;
+        }
+
+        pre {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            color: #e0e0e0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            max-height: 300px;
+            overflow-y: auto;
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        #transcriptionOutput.show, #summaryOutput.show {
+            display: block;
+        }
+
+        /* Shaders and smooth hover transitions for buttons */
+        .btn, .hide-button {
+            transition: transform 0.2s ease, filter 0.2s ease;
+        }
+
+        .btn:hover, .hide-button:hover {
+            transform: translateY(-4px);
+            filter: brightness(1.1);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6200ea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .quote {
+            color: #bdbdbd;
+            font-style: italic;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .quote-container {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1>Meeting Summarizer 3000</h1>
+        <h2>Notes Ninja</h2>
+
+        <div class="mb-4">
+            <label for="fileInput" class="form-label">Upload MP3 or TXT File</label>
+            <input type="file" name="file" accept=".mp3,.txt" class="form-control">
+        </div>
+        
+        <button class="btn btn-primary" onclick="uploadFile()">Upload File</button>
+        
+        <hr>
+        
+        <h3>Transcription</h3>
+        <pre id="transcriptionOutput"></pre>
+        
+        <div class="quote-container" id="quoteContainer">
+            <div class="quote" id="quote"></div>
+        </div>
+
+        <h3>Summary</h3>
+        <div id="loadingSpinner" class="spinner" style="display:none;"></div>
+        <pre id="summaryOutput"></pre>
+
+        <div class="hide-button" onclick="toggleTranscript()">Toggle Transcript</div>
+    </div>
+
+    <script>
+        const quotes = [
+            "Success is not final, failure is not fatal: It is the courage to continue that counts. – Winston Churchill",
+            "The only way to do great work is to love what you do. – Steve Jobs",
+            "Don’t watch the clock; do what it does. Keep going. – Sam Levenson",
+            "Believe you can and you're halfway there. – Theodore Roosevelt",
+            "Hardships often prepare ordinary people for an extraordinary destiny. – C.S. Lewis",
+            "The future belongs to those who believe in the beauty of their dreams. – Eleanor Roosevelt"
+        ];
+
+        function getRandomQuote() {
+            return quotes[Math.floor(Math.random() * quotes.length)];
+        }
+
+        function uploadFile() {
+            const fileInput = document.querySelector('input[name="file"]');
+            const formData = new FormData();
+            if (fileInput.files.length > 0) {
+                formData.append("file", fileInput.files[0]);
+            }
+
+            // Show loading spinner and random quote
+            showRandomQuote();
+            document.getElementById('loadingSpinner').style.display = 'inline-block';
+
+            axios.post('/upload', formData)
+                .then(response => {
+                    const filepath = response.data.filepath;
+                    transcribeAudio(filepath);
+                })
+                .catch(error => {
+                    console.error('Error uploading file:', error);
+                    hideSpinner();
+                });
+        }
+
+        function transcribeAudio(filepath) {
+            axios.post('/transcribe', { filepath })
+                .then(response => {
+                    const transcription = response.data.transcription;
+                    document.getElementById('transcriptionOutput').textContent = transcription;
+                    generateSummary(transcription);
+                })
+                .catch(error => {
+                    console.error('Error transcribing audio:', error);
+                    hideSpinner();
+                });
+        }
+
+        function generateSummary(transcript) {
+            axios.post('/summarize', { transcript })
+                .then(response => {
+                    const summary = response.data.summary;
+                    document.getElementById('summaryOutput').textContent = summary;
+
+                    // Make sure to hide the spinner and show the summary
+                    hideSpinner();
+                    document.getElementById('summaryOutput').classList.add('show');
+                })
+                .catch(error => {
+                    console.error('Error generating summary:', error);
+                    hideSpinner();
+                });
+        }
+
+        function toggleTranscript() {
+            const transcriptionElement = document.getElementById('transcriptionOutput');
+            transcriptionElement.classList.toggle('show');
+        }
+
+        function showRandomQuote() {
+            const quote = getRandomQuote();
+            document.getElementById('quote').textContent = quote;
+            document.getElementById('quoteContainer').style.display = 'block';
+        }
+
+        function hideSpinner() {
+            document.getElementById('loadingSpinner').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
